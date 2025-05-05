@@ -12,6 +12,8 @@ from tqdm import tqdm
 
 save_dir = sys.argv[1]
 language = sys.argv[2]
+generation_model = "o4-mini"
+formating_model = "gpt-4o"
 
 client = OpenAI(api_key=KEY)
 
@@ -48,8 +50,9 @@ for topic in topics:
         - Do not add any explaination. Just output the required conversation.
         '''}
     m.append(query)
-    response = client.chat.completions.create(model="o4-mini", messages=m)
+    response = client.chat.completions.create(model=generation_model, messages=m)
     assistant_reply = response.choices[0].message.content.strip()
+    assistant_reply = '\n'.join([sent for sent in assistant_reply.split('\n') if len(sent.strip())!=0])
     print(f"Generation Response Length: {len(assistant_reply)}")
 	
     def generate_translation_query(content, language):
@@ -60,6 +63,8 @@ for topic in topics:
         - Such english words must be enclosed within special tags like this example: <lang:Foreign>hello</lang:Foreign>.
         - Additionally, randomly, but sparsely insert tags like [babble], [bg-speech], [laugh], [music], [no-speech], [noise], [overlap], [silence] to indicate these effects in the conversation.
         - Wherever initials or abbreviations are used use tag like this example <initial>YMCA</initial>.
+        - English words, and tags must not be over used. Use it only when really required. Take this into account while translating.
+        - All English words HAVE to be enclosed with foreign tags as described.
         - Just output the required translation text content without explaination.
         Sentence: {content}
         Translation:
@@ -67,13 +72,14 @@ for topic in topics:
         return query
 
     translated_content = []
+    conversation_en = assistant_reply
     dialogue = assistant_reply.split('\n')
     for line in tqdm(dialogue, total=len(dialogue), desc="[PROGRESS]"):
         line = line.split(':')
         query = generate_translation_query(line[-1].strip(), language)
         m = messages[:]
         m.append(query)
-        response = client.chat.completions.create(model="gpt-4o", messages=m)
+        response = client.chat.completions.create(model=formating_model, messages=m)
         assistant_reply = response.choices[0].message.content.strip()
         line = assistant_reply if len(line) == 1 else f'{line[0]}: {assistant_reply}'
         translated_content.append(line)
@@ -87,6 +93,10 @@ for topic in topics:
     conversation_file_name = os.path.join(subdir, "conversation.text")
     with open(conversation_file_name, 'w') as f:
         f.write(translated_content + '\n')
+    
+    conversation_english_file_name = os.path.join(subdir, "conversation.en.text")
+    with open(conversation_english_file_name, 'w') as f:
+        f.write(conversation_en)
 
     m = messages[:]
 	# Generate speaker details
@@ -100,7 +110,7 @@ for topic in topics:
         wrapper. I only want the raw json object string '{{...}}' so that I can directly json serialize it.
         '''}
     m.append(query)
-    response = client.chat.completions.create(model="gpt-4o", messages=m)
+    response = client.chat.completions.create(model=formating_model, messages=m)
     assistant_reply = response.choices[0].message.content.strip()
     if assistant_reply[0] != '{':
         # Sometimes the output comes as markdown randered form like ```json ... ```
@@ -126,7 +136,7 @@ for topic in topics:
         any rendering wrapper. I only want the raw json object string '{{...}}' so that I can directly json serialize it.
         '''}
     m.append(query)
-    response = client.chat.completions.create(model="gpt-4o", messages=m)
+    response = client.chat.completions.create(model=formating_model, messages=m)
     assistant_reply = response.choices[0].message.content.strip()
     if assistant_reply[0] != '{':
         # Sometimes the output comes as markdown randered form like ```json ... ```
