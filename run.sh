@@ -8,7 +8,7 @@
 #lang=Hindi
 #lang=Marathi
 #lang=Bengali
-lang=Language
+lang=Marathi
 
 python chatGPT.py Data/Input/$lang/ $lang;
 
